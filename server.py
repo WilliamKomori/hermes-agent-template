@@ -4035,7 +4035,10 @@ async def route_setup_404(request: Request) -> Response:
 
 # ── App lifecycle ─────────────────────────────────────────────────────────────
 async def auto_start():
-    if is_config_complete():
+    # Komori fork: a subscription/OAuth provider configured outside the setup
+    # wizard never satisfies is_config_complete(); KOMORI_AUTOSTART_GATEWAY=1
+    # starts the gateway anyway so a redeploy does not leave it off.
+    if is_config_complete() or os.environ.get("KOMORI_AUTOSTART_GATEWAY") == "1":
         asyncio.create_task(gw.start())
     else:
         print("[server] Config incomplete — gateway not started. Configure provider + model in the admin UI.", flush=True)

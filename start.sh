@@ -117,6 +117,14 @@ rm -f /data/.hermes/gateway.pid /data/.hermes/gateway.lock /data/.hermes/gateway
 # Dashboard has no respawn supervisor every proxied page 503s until redeploy
 # while /setup and /health stay green. Setting it here would skip that pairing.
 
+# Komori fork: tools kept on the volume (gh, helpers) join PATH on every boot,
+# because the image filesystem is rebuilt on each deploy.
+if [ -d /data/bin ]; then
+  for tool in /data/bin/*; do
+    [ -x "$tool" ] && ln -sf "$tool" "/usr/local/bin/$(basename "$tool")"
+  done
+fi
+
 # Komori fork: Hermes WebUI lives on the volume and shares this HERMES_HOME.
 # It supervises itself; a missing script just means it is not installed.
 if [ -x /data/hermes-webui-start.sh ]; then
