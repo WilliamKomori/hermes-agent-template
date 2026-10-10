@@ -74,6 +74,17 @@ fi
 # root and every live profile before the dashboard or gateway can read them.
 # The helper rejects symlinked state paths, preserves each profile's own
 # HERMES_HOME, and stops startup if a migration fails after upstream rollback.
+# Komori fork: a config restored from a newer local Hermes (schema 49) is
+# rejected by this image (supports up to 46). The keys in use are compatible,
+# so restamp it once and keep a backup next to the file.
+for cfg in /data/.hermes/config.yaml /data/.hermes/profiles/*/config.yaml; do
+  if [ -f "$cfg" ] && [ ! -L "$cfg" ] && grep -q '^_config_version: 49' "$cfg"; then
+    cp -n "$cfg" "$cfg.v49.bak"
+    sed -i 's/^_config_version: 49/_config_version: 46/' "$cfg"
+    echo "[komori] restamped $cfg from schema 49 to 46"
+  fi
+done
+
 python /app/migrate_hermes_configs.py
 
 # Bootstrap OAuth tokens from env var (e.g. xAI Grok SuperGrok).
@@ -105,5 +116,11 @@ rm -f /data/.hermes/gateway.pid /data/.hermes/gateway.lock /data/.hermes/gateway
 # SystemExit at startup (v2026.8.27's should_require_dashboard_auth), and since
 # Dashboard has no respawn supervisor every proxied page 503s until redeploy
 # while /setup and /health stay green. Setting it here would skip that pairing.
+
+# Komori fork: Hermes WebUI lives on the volume and shares this HERMES_HOME.
+# It supervises itself; a missing script just means it is not installed.
+if [ -x /data/hermes-webui-start.sh ]; then
+  /data/hermes-webui-start.sh &
+fi
 
 exec python /app/server.py
